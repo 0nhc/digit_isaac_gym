@@ -1,0 +1,131 @@
+<robot name="digit_sensor">
+  <link name="world">
+  </link>
+
+  <link name="ball">
+    <visual>
+      <origin xyz="0.0 0.0 -0.2" rpy="0 0 0" />
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+      <material name="ball_material">
+        <color rgba="1.0 0.0 0.0 1.0"/>
+      </material>
+    </visual>  
+    <collision>
+      <origin xyz="0.0 0.0 -0.2" rpy="0 0 0"/>
+      <geometry>
+        <sphere radius="0.01"/>
+      </geometry>
+    </collision>
+  </link>
+  
+  <joint name = "rail" type = "prismatic">
+    <parent link="world"/>    
+    <child link="ball"/>    
+    <origin xyz="0.0 0.0 0.0"/>    
+    <axis xyz="0 0 1"/>    
+    <limit lower="0.0" upper="0.22"/>    
+    <dynamics damping="0.0" friction="0.0"/>  
+  </joint>
+	
+  <link name="base_link">
+    <visual>
+      <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/digit_bottom.stl"/>
+      </geometry>
+      <material name="digit_bottom_material">
+        <color rgba="0.30196078431372547213 0.30196078431372547213 0.30196078431372547213 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/digit_bottom.stl"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/digit_top.stl"/>
+      </geometry>
+      <material name="digit_top_material">
+        <color rgba="0.30196078431372547213 0.30196078431372547213 0.30196078431372547213 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/digit_top.stl"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="5.2041704279304212832e-18 0.0054726271455008993969 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/acrylic_window.stl"/>
+      </geometry>
+      <material name="acrylic_window_material">
+        <color rgba="0.91764705882352937127 0.91764705882352937127 0.91764705882352937127 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="5.2041704279304212832e-18 0.0054726271455008993969 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/acrylic_window.stl"/>
+      </geometry>
+    </collision>
+    <visual>
+      <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/digit_center.stl"/>
+      </geometry>
+      <material name="digit_center_material">
+        <color rgba="0.30196078431372547213 0.30196078431372547213 0.30196078431372547213 1.0"/>
+      </material>
+    </visual>
+    <collision>
+      <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+      <geometry>
+        <mesh filename="../meshes/digit_center.stl"/>
+      </geometry>
+    </collision>
+    <inertial>
+      <origin xyz="5.6323307647757419518e-09 -0.00036540399288771023903 -0.017222829703969658871" rpy="0 0 0"/>
+      <mass value="0.011202999387148686317" />
+      <inertia ixx="1.9653017696085393998e-06" ixy="-2.4773685713267990325e-12"  ixz="1.0361262631289354413e-11" iyy="1.6086288436632567192e-06" iyz="3.4152009468066426172e-09" izz="1.8792541631746658267e-06" />
+    </inertial>
+  </link>
+
+  <joint name="base" type="fixed">
+    <origin xyz="0 0 0" rpy="0 -0 0" />
+    <parent link="world" />
+    <child link="base_link" />
+    <axis xyz="0 0 1"/>
+    <limit effort="1" velocity="20" />
+    <joint_properties friction="0.0"/>
+  </joint>
+  
+  <link name="elastomer">
+    <fem>
+      <origin xyz="0.0 0.00544122 -0.03035" rpy="0 -0 0" />
+      <density value="1e2"/>
+      <youngs value="200.93"/>
+      <!--youngs value="1e5"/-->
+      <poissons value="0.5"/>
+      <damping value="0.0"/>
+      <attachDistance value="1.0e-2"/>
+      <tetmesh filename="../meshes/elastomer.tet"/>
+    </fem>
+  </link>
+
+  <joint name="attach" type="fixed">
+    <origin xyz="5.2041704279304212832e-18 -0.011792651350691449319 -0.0283500000000000002" rpy="0 -0 0" />
+    <parent link="base_link" />
+    <child link="elastomer" />
+    <axis xyz="0 0 1"/>
+    <limit effort="1" velocity="20" />
+    <joint_properties friction="0.0"/>
+  </joint>
+
+</robot>
