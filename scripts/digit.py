@@ -14,7 +14,6 @@ Simple import of a URDF with a soft body link and rigid body press mechanism
 """
 
 import math
-import random
 from isaacgym import gymapi
 from isaacgym import gymutil
 
@@ -24,13 +23,8 @@ import numpy as np
 gym = gymapi.acquire_gym()
 
 # parse arguments
-args = gymutil.parse_arguments(description="FEM Soft Body Example")
-if args.physics_engine != gymapi.SIM_FLEX:
-    print("*** Soft body example only supports FleX")
-    print("*** Run example with --flex flag")
-    quit()
-
-random.seed(7)
+args = gymutil.parse_arguments()
+args.physics_engine = gymapi.SIM_FLEX
 
 # simulation parameters
 sim_params = gymapi.SimParams()
@@ -40,8 +34,11 @@ sim_params.flex.solver_type = 5
 sim_params.flex.num_outer_iterations = 4
 sim_params.flex.num_inner_iterations = 20
 sim_params.flex.relaxation = 0.8
-sim_params.flex.warm_start = 0.75
-sim_params.flex.shape_collision_margin = 0.1
+sim_params.flex.warm_start = 0.7
+sim_params.flex.shape_collision_distance = 0.0001  # Distance to be maintained between soft bodies and other bodies or ground plane
+sim_params.flex.shape_collision_margin = 0.0002  # Distance from rigid bodies at which to begin generating contact constraints
+sim_params.flex.friction_mode = 2  # Friction about all 3 axes (including torsional)
+sim_params.flex.dynamic_friction = 7.83414394e-01
 
 # enable Von-Mises stress visualization
 sim_params.stress_visualization = True
@@ -70,9 +67,6 @@ if viewer is None:
 # load urdf for sphere asset used to create softbody
 asset_root = "../urdf"
 soft_asset_file = "soft_digit_description.urdf"
-
-# asset_root = "../../assets"
-# soft_asset_file = "urdf/icosphere.urdf"
 
 soft_thickness = 0.1    # important to add some thickness to the soft body to avoid interpenetrations
 
@@ -120,20 +114,20 @@ for i in range(num_envs):
     soft_actors.append(soft_actor)
 
     # set soft material within a range of default
-    actor_default_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
-    actor_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
-    for j in range(asset_soft_body_count):
-        youngs = actor_soft_materials[j].youngs
-        actor_soft_materials[j].youngs = random.uniform(youngs * 0.2, youngs * 2.4)
+    # actor_default_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
+    # actor_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
+    # for j in range(asset_soft_body_count):
+    #     youngs = actor_soft_materials[j].youngs
+    #     actor_soft_materials[j].youngs = random.uniform(youngs * 0.2, youngs * 2.4)
 
-        poissons = actor_soft_materials[j].poissons
-        actor_soft_materials[j].poissons = random.uniform(poissons * 0.8, poissons * 1.2)
+    #     poissons = actor_soft_materials[j].poissons
+    #     actor_soft_materials[j].poissons = random.uniform(poissons * 0.8, poissons * 1.2)
 
-        damping = actor_soft_materials[j].damping
-        # damping is 0, instead we just randomize from scratch
-        actor_soft_materials[j].damping = random.uniform(0.0, 0.08)**2
+    #     damping = actor_soft_materials[j].damping
+    #     # damping is 0, instead we just randomize from scratch
+    #     actor_soft_materials[j].damping = random.uniform(0.0, 0.08)**2
 
-        gym.set_actor_soft_materials(env, soft_actor, actor_soft_materials)
+    #     gym.set_actor_soft_materials(env, soft_actor, actor_soft_materials)
 
     # enable pd-control on rail joint to allow
     # control of the press using the GUI
