@@ -119,12 +119,10 @@
   </link>
 
   <joint name="attach" type="fixed">
-    <origin xyz="5.2041704279304212832e-18 -0.011792651350691449319 -0.0283500000000000002" rpy="0 -0 0" />
+    <origin xyz="5.2041704279304212832e-18 -0.011792651350691449319 -0.0283500000000000002" rpy="0 0 0" />
     <parent link="base_link" />
     <child link="elastomer" />
     <axis xyz="0 0 1"/>
-    <limit effort="1" velocity="20" />
-    <joint_properties friction="0.0"/>
   </joint>
 
 </robot>

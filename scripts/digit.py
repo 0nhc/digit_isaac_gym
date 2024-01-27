@@ -46,8 +46,6 @@ sim_params.stress_visualization_min = 0.0
 sim_params.stress_visualization_max = 1.e+5
 
 sim_params.use_gpu_pipeline = False
-if args.use_gpu_pipeline:
-    print("WARNING: Forcing CPU pipeline.")
 
 sim = gym.create_sim(args.compute_device_id, args.compute_device_id, args.physics_engine, sim_params)
 if sim is None:
@@ -66,7 +64,7 @@ if viewer is None:
 
 # load urdf for sphere asset used to create softbody
 asset_root = "../urdf"
-soft_asset_file = "soft_digit_description.urdf"
+soft_asset_file = "digit.urdf"
 
 soft_thickness = 0.1    # important to add some thickness to the soft body to avoid interpenetrations
 
@@ -114,8 +112,8 @@ for i in range(num_envs):
     soft_actors.append(soft_actor)
 
     # set soft material within a range of default
-    # actor_default_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
-    # actor_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
+    actor_default_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
+    actor_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
     # for j in range(asset_soft_body_count):
     #     youngs = actor_soft_materials[j].youngs
     #     actor_soft_materials[j].youngs = random.uniform(youngs * 0.2, youngs * 2.4)
