@@ -114,26 +114,14 @@ for i in range(num_envs):
     # set soft material within a range of default
     actor_default_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
     actor_soft_materials = gym.get_actor_soft_materials(env, soft_actor)
-    # for j in range(asset_soft_body_count):
-    #     youngs = actor_soft_materials[j].youngs
-    #     actor_soft_materials[j].youngs = random.uniform(youngs * 0.2, youngs * 2.4)
-
-    #     poissons = actor_soft_materials[j].poissons
-    #     actor_soft_materials[j].poissons = random.uniform(poissons * 0.8, poissons * 1.2)
-
-    #     damping = actor_soft_materials[j].damping
-    #     # damping is 0, instead we just randomize from scratch
-    #     actor_soft_materials[j].damping = random.uniform(0.0, 0.08)**2
-
-    #     gym.set_actor_soft_materials(env, soft_actor, actor_soft_materials)
 
     # enable pd-control on rail joint to allow
     # control of the press using the GUI
     gym.set_joint_target_position(env, gym.get_joint_handle(env, "soft", "rail"), 0.0)
 
 # Point camera at environments
-cam_pos = gymapi.Vec3(-4.0, 2.8, -1.2)
-cam_target = gymapi.Vec3(0.0, 1.4, 1.0)
+cam_pos = gymapi.Vec3(-0.05, 1.55, -0.05)
+cam_target = gymapi.Vec3(0.3, 1.45, 0.3)
 gym.viewer_camera_look_at(viewer, None, cam_pos, cam_target)
 
 # options
