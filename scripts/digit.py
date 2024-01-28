@@ -1,18 +1,3 @@
-"""
-Copyright (c) 2020, NVIDIA CORPORATION. All rights reserved.
-
-NVIDIA CORPORATION and its licensors retain all intellectual property
-and proprietary rights in and to this software, related documentation
-and any modifications thereto. Any use, reproduction, disclosure or
-distribution of this software and related documentation without an express
-license agreement from NVIDIA CORPORATION is strictly prohibited.
-
-
-Soft Body
----------
-Simple import of a URDF with a soft body link and rigid body press mechanism
-"""
-
 import math
 from isaacgym import gymapi
 from isaacgym import gymutil
@@ -125,7 +110,7 @@ cam_target = gymapi.Vec3(0.3, 1.45, 0.3)
 gym.viewer_camera_look_at(viewer, None, cam_pos, cam_target)
 
 # options
-flag_draw_contacts = False
+flag_draw_contacts = True
 flag_compute_pressure = False
 
 while not gym.query_viewer_has_closed(viewer):
