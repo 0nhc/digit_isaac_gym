@@ -1,6 +1,7 @@
 import math
 from isaacgym import gymapi
 from isaacgym import gymutil
+from isaacgym import gymtorch
 
 import numpy as np
 
@@ -110,7 +111,7 @@ cam_target = gymapi.Vec3(0.3, 1.45, 0.3)
 gym.viewer_camera_look_at(viewer, None, cam_pos, cam_target)
 
 # options
-flag_draw_contacts = True
+flag_draw_contacts = False
 flag_compute_pressure = False
 
 while not gym.query_viewer_has_closed(viewer):
@@ -119,37 +120,18 @@ while not gym.query_viewer_has_closed(viewer):
     gym.simulate(sim)
     gym.fetch_results(sim, True)
 
-    if (flag_draw_contacts):
-        gym.clear_lines(viewer)
-        for env in envs:
-            gym.draw_env_soft_contacts(viewer, env, gymapi.Vec3(0.7, 0.2, 0.15), 0.0005, True, True)
-
-    if (flag_compute_pressure):
-        # read tetrahedral and triangle data from simulation
-        (tet_indices, tet_stress) = gym.get_sim_tetrahedra(sim)
-        (tri_indices, tri_parents, tri_normals) = gym.get_sim_triangles(sim)
-
-        for env in envs:
-
-            # get range (start, count) for each soft actor (assumes one soft body)
-            tet_range = gym.get_actor_tetrahedra_range(env, 0, 0)
-            tri_range = gym.get_actor_triangle_range(env, 0, 0)
-
-            for i in range(tri_range.start, tri_range.start + tri_range.count):
-
-                # 'parent' tetrahedron of this triangle
-                parent = tri_parents[i]
-                parent_stress = tet_stress[parent]
-
-                # convert to numpy
-                stress = np.matrix([(parent_stress.x.x, parent_stress.y.x, parent_stress.z.x),
-                                    (parent_stress.x.y, parent_stress.y.y, parent_stress.z.y),
-                                    (parent_stress.x.z, parent_stress.y.z, parent_stress.z.z)])
-
-                normal = np.array((tri_normals[i].x, tri_normals[i].y, tri_normals[i].z))
-
-                # compute force density (since normal is normalized)
-                force = np.dot(stress, normal)
+    # Get particle positions
+    gym.refresh_particle_state_tensor(sim)
+    particle_states = gymtorch.wrap_tensor(gym.acquire_particle_state_tensor(sim))
+    num_particles = len(particle_states)
+    num_particles_per_env = int(num_particles / num_envs)
+    nodal_coords = np.zeros((num_envs, num_particles_per_env, 3))
+    print(particle_states.size()) # [1943, 11]
+    for global_particle_index, particle_state in enumerate(particle_states):
+        pos = particle_state[:3]
+        env_index = global_particle_index // num_particles_per_env # which env
+        local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
+        nodal_coords[env_index][local_particle_index] = pos.numpy()
 
     # update the viewer
     gym.step_graphics(sim)
