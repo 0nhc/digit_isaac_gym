@@ -8,20 +8,24 @@ from scipy.spatial.transform import Rotation as R
 import numpy as np
 
 class INCREMENTAL_CONTROLLER:
-    def __init__(self, increment=1.e-4) -> None:
+    def __init__(self, increment=1.0e-4, eps=1.0e-4) -> None:
         self.increment_ = increment
+        self.eps_ = eps
 
     def get_input(self, state, ref_state):
         input_ = state
 
-        if(ref_state > state):
+        if(abs(ref_state - state) < self.eps_):
+            pass
+        elif(ref_state > state):
             input_ += self.increment_
         elif(ref_state < state):
             input_ -= self.increment_
         else:
-            pass
+            print("Unknown error in function get_input()")
 
         return input_
+        
 
 class DIGIT_SIM:
     def __init__(self) -> None:
@@ -60,7 +64,7 @@ class DIGIT_SIM:
         self.indenters = ["ball_indenter"]
         self.indenter_dir = os.path.join('urdf', 'indenters')
         self.indenter_assets = []
-        self.indenter_offset = 0.125
+        self.indenter_offset = 0.12
         self.indenter_actors = []
 
         # Specify Env Parameters
@@ -74,10 +78,10 @@ class DIGIT_SIM:
         self.controller_pd_gains = [1.0e+9, 0.0] # PD controller parameters
 
         # Initialize Incremental Controller for Indenters
-        self.incremental_controller = INCREMENTAL_CONTROLLER(1e-4)
+        self.incremental_controller = INCREMENTAL_CONTROLLER(increment=5e-5)
 
         # Set target indenter pose, Isaac Gym's coordinate system is Y up.
-        self.indent_target = [0.0, 0.11, 0.0,  # Position of tip
+        self.indent_target = [0.0, 0.112, -0.005,  # Position of tip
                               1.0, 0.0, 0.0,         # Orientation of x-axis       
                               0.0, 1.0, 0.0,         # Orientation of y-axis
                               0.0, 0.0, 1.0]         # Orientation of z-axis
@@ -229,6 +233,10 @@ class DIGIT_SIM:
             # This synchronizes the physics simulation with the rendering rate.
             self.gym.sync_frame_time(self.sim)
 
+    def coda_(self):
+        self.gym.destroy_viewer(self.viewer)
+        self.gym.destroy_sim(self.sim)
+
     def main(self):
         self.initialize_simulation_()
         self.create_viewer_()
@@ -236,7 +244,7 @@ class DIGIT_SIM:
         self.setup_assets_()
         self.setup_actors_()
         self.sim_loop_()
-
+        self.coda_()
 
 if __name__ == "__main__":
     digit_sim = DIGIT_SIM()
