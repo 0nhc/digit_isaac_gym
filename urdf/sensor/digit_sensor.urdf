@@ -1,7 +1,9 @@
 <robot name="digit">
+    <link name="world"/>
+
     <link name="digit_base">
         <visual>
-            <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/digit_bottom.stl"/>
             </geometry>
@@ -10,13 +12,13 @@
             </material>
         </visual>
         <collision>
-            <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/digit_bottom.stl"/>
             </geometry>
         </collision>
         <visual>
-            <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/digit_top.stl"/>
             </geometry>
@@ -25,13 +27,13 @@
             </material>
         </visual>
         <collision>
-            <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/digit_top.stl"/>
             </geometry>
         </collision>
         <visual>
-            <origin xyz="6.9388939039072283776e-18 0.0054726271455009002642 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="8.673617379884035e-18 0.001472627145500901 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/acrylic_window.stl"/>
             </geometry>
@@ -40,13 +42,13 @@
             </material>
         </visual>
         <collision>
-            <origin xyz="6.9388939039072283776e-18 0.0054726271455009002642 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="8.673617379884035e-18 0.001472627145500901 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/acrylic_window.stl"/>
             </geometry>
         </collision>
         <visual>
-            <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/digit_center.stl"/>
             </geometry>
@@ -55,21 +57,28 @@
             </material>
         </visual>
         <collision>
-            <origin xyz="-1.7347234759768070944e-18 0.0039999999999999992159 -0.02834999999999999673" rpy="0 -0 0" />
+            <origin xyz="0 0 0" rpy="0 -0 0" />
             <geometry>
             <mesh filename="../../meshes/digit_center.stl"/>
             </geometry>
         </collision>
         <inertial>
-            <origin xyz="5.63455410584598546e-09 -0.00036102000365889093522 -0.017219651141187425347" rpy="0 0 0"/>
+            <origin xyz="5.634554107580709e-09 -0.00436102000365889 0.011130348858812571" rpy="0 0 0"/>
             <mass value="0.011198578791898805909" />
             <inertia ixx="1.9644553798333779512e-06" ixy="-2.4770919459996182574e-12"  ixz="1.0361463195467100313e-11" iyy="1.6079833449569471555e-06" iyz="3.8106738589359573195e-09" izz="1.878363607520652625e-06" />
         </inertial>
     </link>
 
+    <joint name="world_digit" type="fixed">
+        <origin xyz="0 0 0" rpy="1.57079632 0 0" />
+        <parent link="world" />
+        <child link="digit_base" />
+        <axis xyz="0 0 0"/>
+    </joint>
+
     <link name="gel">
         <fem>
-        <origin xyz="3.4694469519536141888e-18 0.005472545706442896 -0.0242" rpy="0 3.141592653589793116 0" />
+        <origin xyz="5.204170427930421e-18 0.0014725457064428968 0.0041499999999999974" rpy="0 3.141592653589793116 0" />
         <density value="1e3"/>
         <youngs value="1e6"/>
         <poissons value="0.3"/>

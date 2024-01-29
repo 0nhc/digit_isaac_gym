@@ -4,6 +4,24 @@ from isaacgym import gymtorch
 
 import os
 import math
+from scipy.spatial.transform import Rotation as R
+import numpy as np
+
+class INCREMENTAL_CONTROLLER:
+    def __init__(self, increment=1.e-4) -> None:
+        self.increment_ = increment
+
+    def get_input(self, state, ref_state):
+        input_ = state
+
+        if(ref_state > state):
+            input_ += self.increment_
+        elif(ref_state < state):
+            input_ -= self.increment_
+        else:
+            pass
+
+        return input_
 
 class DIGIT_SIM:
     def __init__(self) -> None:
@@ -24,11 +42,11 @@ class DIGIT_SIM:
         self.sim_params.flex.shape_collision_margin = 0.0002
         self.sim_params.flex.friction_mode = 2
         self.sim_params.flex.dynamic_friction = 7.83414394e-01
-        ## enable Von-Mises stress visualization
+        # enable Von-Mises stress visualization
         self.sim_params.stress_visualization = True
         self.sim_params.stress_visualization_min = 0.0
         self.sim_params.stress_visualization_max = 1.e+5
-        ## disable GPU pipeline
+        # disable GPU pipeline
         self.sim_params.use_gpu_pipeline = False
 
         # Specify Sensors to be Loaded
@@ -42,7 +60,7 @@ class DIGIT_SIM:
         self.indenters = ["ball_indenter"]
         self.indenter_dir = os.path.join('urdf', 'indenters')
         self.indenter_assets = []
-        self.indenter_offset = 0.12
+        self.indenter_offset = 0.125
         self.indenter_actors = []
 
         # Specify Env Parameters
@@ -54,6 +72,15 @@ class DIGIT_SIM:
 
         # Specify Indenter Controllers
         self.controller_pd_gains = [1.0e+9, 0.0] # PD controller parameters
+
+        # Initialize Incremental Controller for Indenters
+        self.incremental_controller = INCREMENTAL_CONTROLLER(1e-4)
+
+        # Set target indenter pose, Isaac Gym's coordinate system is Y up.
+        self.indent_target = [0.0, 0.11, 0.0,  # Position of tip
+                              1.0, 0.0, 0.0,         # Orientation of x-axis       
+                              0.0, 1.0, 0.0,         # Orientation of y-axis
+                              0.0, 0.0, 1.0]         # Orientation of z-axis
 
     def initialize_simulation_(self):
         # initialize Isaac Gym
@@ -130,14 +157,18 @@ class DIGIT_SIM:
             # create sensor actors
             sensor_pose = gymapi.Transform()
             sensor_pose.p = gymapi.Vec3(0.0, self.sensor_offset, 0.0)
-            sensor_pose.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(1, 0, 0), 0.5 * math.pi)
+            sensor_r = R.from_euler('XYZ', [0, 0, 0], degrees=True)
+            sensor_quat = sensor_r.as_quat()
+            sensor_pose.r = gymapi.Quat(*sensor_quat)
             sensor_actor = self.gym.create_actor(self.envs[i], self.sensor_assets[0], sensor_pose, "sensor", i, 1)
             self.sensor_actors.append(sensor_actor)
 
             # create indenter actors
             indenter_pose = gymapi.Transform()
             indenter_pose.p = gymapi.Vec3(0.0, self.indenter_offset, 0.0)
-            indenter_pose.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(1, 0, 0), 0.5 * math.pi)
+            indenter_r = R.from_euler('XYZ', [0, 0, 0], degrees=True)
+            indenter_quat = indenter_r.as_quat()
+            indenter_pose.r = gymapi.Quat(*indenter_quat)
             indenter_actor = self.gym.create_actor(self.envs[i], self.indenter_assets[i], indenter_pose, "indenter", i, 1)
             self.indenter_actors.append(indenter_actor)
 
@@ -148,14 +179,49 @@ class DIGIT_SIM:
             indenter_dof_props['damping'][0] = self.controller_pd_gains[1]
             self.gym.set_actor_dof_properties(self.envs[i], self.indenter_actors[i], indenter_dof_props)
 
+    def indenters_control_(self):
+        # get indent target
+        target_position = self.indent_target[:3]
+        target_x_axis = self.indent_target[3:6]
+        target_y_axis = self.indent_target[6:9]
+        target_z_axis = self.indent_target[9:12]
+
+        for i in range(self.env_num):
+            # get state
+            indenter_state = self.gym.get_actor_rigid_body_states(self.envs[i], self.indenter_actors[i], gymapi.STATE_ALL)
+
+            # walk through all links in the indenter
+            for j in range(len(indenter_state)):
+                # control position
+                position_state = indenter_state[j]['pose']['p']
+                # walk through xyz in a position
+                for k in range(len(position_state)):
+                    indenter_state[j]['pose']['p'][k] = self.incremental_controller.get_input(state=float(position_state[k]), 
+                                                                                              ref_state=target_position[k])
+
+                # control orientation
+                r = R.from_matrix(np.asarray([target_x_axis, target_y_axis, target_z_axis]).transpose())
+                quat = r.as_quat()
+                indenter_state[j]['pose']['r'] = tuple(quat)
+
+                # set linear and angular velocities
+                indenter_state[j]['vel']['linear'] = (0.0, 0.0, 0.0)
+                indenter_state[j]['vel']['angular'] = (0.0, 0.0, 0.0)
+
+            # apply changes
+            self.gym.set_actor_rigid_body_states(self.envs[i], self.indenter_actors[i], indenter_state, gymapi.STATE_ALL)
+
     def sim_loop_(self):
         # Sim loop
         while not self.gym.query_viewer_has_closed(self.viewer):
             # step the physics
             self.gym.simulate(self.sim)
             self.gym.fetch_results(self.sim, True)
-            # update the viewer
 
+            # control indenters
+            self.indenters_control_()
+
+            # update the viewer
             self.gym.step_graphics(self.sim)
             self.gym.draw_viewer(self.viewer, self.sim, False)
 
