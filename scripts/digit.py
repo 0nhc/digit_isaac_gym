@@ -208,3 +208,4 @@ while not gym.query_viewer_has_closed(viewer):
 
 gym.destroy_viewer(viewer)
 gym.destroy_sim(sim)
+plt.show()
