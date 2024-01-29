@@ -78,6 +78,7 @@ num_envs = 1
 spacing = 3.0
 env_lower = gymapi.Vec3(-spacing, 0.0, -spacing)
 env_upper = gymapi.Vec3(spacing, spacing, spacing)
+soft_body_height = 0.1 #TODO For unknown reason this value cannotbe set to zero
 
 # cache some common handles for later use
 envs = []
@@ -92,7 +93,7 @@ for i in range(num_envs):
     envs.append(env)
 
     pose = gymapi.Transform()
-    pose.p = gymapi.Vec3(0.0, 1.5, 0.0)
+    pose.p = gymapi.Vec3(0.0, soft_body_height, 0.0)
     pose.r = gymapi.Quat.from_axis_angle(gymapi.Vec3(1, 0, 0), 0.5 * math.pi)
 
     # add soft body + rail actor
@@ -108,18 +109,53 @@ for i in range(num_envs):
     gym.set_joint_target_position(env, gym.get_joint_handle(env, "soft", "rail"), 0.0)
 
 # Point camera at environments
-cam_pos = gymapi.Vec3(-0.05, 1.55, -0.05)
-cam_target = gymapi.Vec3(0.3, 1.45, 0.3)
+cam_pos = gymapi.Vec3(-0.05, soft_body_height + 0.05, -0.05)
+cam_target = gymapi.Vec3(0.3, soft_body_height - 0.05, 0.3)
 gym.viewer_camera_look_at(viewer, None, cam_pos, cam_target)
-
-# options
-flag_draw_contacts = False
-flag_compute_pressure = False
 
 # Initialize matplotlib and axes3D
 fig = plt.figure() # 创建一个画布figure，然后在这个画布上加各种元素。
 ax = Axes3D(fig)
+plt.figure(figsize=(8,10))
 
+# options
+flag_visualize = True
+
+
+def get_surface_indexes():
+    '''
+    This is a test function for env[0], will be removed in the future
+    '''
+    # step the physics
+    gym.simulate(sim)
+    gym.fetch_results(sim, True)
+    indexes_ = []
+    # Get particle positions
+    gym.refresh_particle_state_tensor(sim)
+    particle_states = gymtorch.wrap_tensor(gym.acquire_particle_state_tensor(sim))
+    num_particles = len(particle_states)
+    num_particles_per_env = int(num_particles / num_envs)
+    nodal_coords = np.zeros((num_envs, num_particles_per_env, 3))
+    for global_particle_index, particle_state in enumerate(particle_states):
+        pos = particle_state[:3]
+        env_index = global_particle_index // num_particles_per_env # which env
+        local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
+        nodal_coords[env_index][local_particle_index] = pos.numpy()
+
+    # Get positions in env0 for testing
+    z_pos_env_0 = list(nodal_coords[0][:][:,1])
+
+    # Filter points by its height to get the surafce vertices indexes
+    surface_height_threshold = soft_body_height + 0.0305 # manually tuned
+    for i in range(num_particles_per_env):
+        if(z_pos_env_0[i] > surface_height_threshold):
+            indexes_.append(i)
+    
+    return indexes_
+
+indexes = get_surface_indexes()
+
+# Sim loop
 while not gym.query_viewer_has_closed(viewer):
 
     # step the physics
@@ -132,24 +168,35 @@ while not gym.query_viewer_has_closed(viewer):
     num_particles = len(particle_states)
     num_particles_per_env = int(num_particles / num_envs)
     nodal_coords = np.zeros((num_envs, num_particles_per_env, 3))
-    # print(particle_states.size()) # [1943, 11]
     for global_particle_index, particle_state in enumerate(particle_states):
         pos = particle_state[:3]
         env_index = global_particle_index // num_particles_per_env # which env
         local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
         nodal_coords[env_index][local_particle_index] = pos.numpy()
 
-    # Visualize positions
-    plt.clf()
+    # Get positions in env0 for testing
     x_pos_env_0 = list(nodal_coords[0][:][:,0])
     y_pos_env_0 = list(nodal_coords[0][:][:,2])
-    z_pos_env_0 = list(nodal_coords[0][:][:,1]-1.5)
-    # print(x_pos_env_0)
-    # print(y_pos_env_0)
-    # print(z_pos_env_0)
-    # print("----------------------------")
-    plt.scatter(x_pos_env_0, y_pos_env_0, c='r')
-    plt.pause(0.01)
+    z_pos_env_0 = list(nodal_coords[0][:][:,1])
+
+    # Filter surafce vertices by indexes
+    surface_height_threshold = soft_body_height + 0.03125 # manually tuned
+    x_pos_filtered_env_0 = []
+    y_pos_filtered_env_0 = []
+    z_pos_filtered_env_0 = []
+    for i in indexes:
+        x_pos_filtered_env_0.append(x_pos_env_0[i])
+        y_pos_filtered_env_0.append(y_pos_env_0[i])
+        z_pos_filtered_env_0.append(z_pos_env_0[i])
+
+    # Visualize positions
+    if(flag_visualize):
+        plt.clf()
+        plt.scatter(x_pos_filtered_env_0, y_pos_filtered_env_0, c='r')
+        # set axes range
+        plt.xlim(-0.01, 0.01) # sensor size
+        plt.ylim(-0.012, 0.0135) # sensor size
+        plt.pause(0.01)
 
     # update the viewer
     gym.step_graphics(sim)
