@@ -2,8 +2,10 @@ import math
 from isaacgym import gymapi
 from isaacgym import gymutil
 from isaacgym import gymtorch
-
 import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 
 # initialize gym
 gym = gymapi.acquire_gym()
@@ -114,6 +116,10 @@ gym.viewer_camera_look_at(viewer, None, cam_pos, cam_target)
 flag_draw_contacts = False
 flag_compute_pressure = False
 
+# Initialize matplotlib and axes3D
+fig = plt.figure() # 创建一个画布figure，然后在这个画布上加各种元素。
+ax = Axes3D(fig)
+
 while not gym.query_viewer_has_closed(viewer):
 
     # step the physics
@@ -126,12 +132,24 @@ while not gym.query_viewer_has_closed(viewer):
     num_particles = len(particle_states)
     num_particles_per_env = int(num_particles / num_envs)
     nodal_coords = np.zeros((num_envs, num_particles_per_env, 3))
-    print(particle_states.size()) # [1943, 11]
+    # print(particle_states.size()) # [1943, 11]
     for global_particle_index, particle_state in enumerate(particle_states):
         pos = particle_state[:3]
         env_index = global_particle_index // num_particles_per_env # which env
         local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
         nodal_coords[env_index][local_particle_index] = pos.numpy()
+
+    # Visualize positions
+    plt.clf()
+    x_pos_env_0 = list(nodal_coords[0][:][:,0])
+    y_pos_env_0 = list(nodal_coords[0][:][:,2])
+    z_pos_env_0 = list(nodal_coords[0][:][:,1]-1.5)
+    # print(x_pos_env_0)
+    # print(y_pos_env_0)
+    # print(z_pos_env_0)
+    # print("----------------------------")
+    plt.scatter(x_pos_env_0, y_pos_env_0, c='r')
+    plt.pause(0.01)
 
     # update the viewer
     gym.step_graphics(sim)
