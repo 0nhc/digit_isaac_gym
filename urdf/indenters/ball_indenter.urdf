@@ -1,4 +1,4 @@
-<robot name="digit">
+<robot name="ball">
     <link name="world"/>
 
     <link name="ball">

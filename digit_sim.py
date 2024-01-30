@@ -83,8 +83,8 @@ class DIGIT_SIM:
         self.sim_params.flex.num_inner_iterations = 20
         self.sim_params.flex.relaxation = 0.8
         self.sim_params.flex.warm_start = 0.7
-        self.sim_params.flex.shape_collision_distance = 0.0001
-        self.sim_params.flex.shape_collision_margin = 0.0002
+        self.sim_params.flex.shape_collision_distance = 5e-4
+        self.sim_params.flex.shape_collision_margin = 5e-4
         self.sim_params.flex.friction_mode = 2
         self.sim_params.flex.dynamic_friction = 7.83414394e-01
         # enable Von-Mises stress visualization
@@ -102,7 +102,7 @@ class DIGIT_SIM:
         self.sensor_actors = []
 
         # Specify Indenters to be Loaded
-        self.indenters = ["ball_indenter"]
+        self.indenters = ["ball_indenter", "box_indenter"]
         self.indenter_dir = os.path.join('urdf', 'indenters')
         self.indenter_assets = []
         self.indenter_offset = 0.12
@@ -128,7 +128,9 @@ class DIGIT_SIM:
                               0.0, 0.0, 1.0]         # Orientation of z-axis
         
         # visualize FEM vertices in real time
-        self.visualizer = VISUALIZER(scale=10.0)
+        self.visualizers = []
+        for i in range(self.env_num):
+            self.visualizers.append(VISUALIZER(scale=10.0))
         self.nodal_coords = np.zeros([])
 
     def initialize_simulation_(self):
@@ -190,6 +192,10 @@ class DIGIT_SIM:
         
         return asset_handles_
 
+    def setup_assets_(self):
+        self.sensor_assets = self.load_assets_(self.sensors, self.sensor_dir, fix_base_link_=True, disable_gravity_=True)
+        self.indenter_assets = self.load_assets_(self.indenters, self.indenter_dir, fix_base_link_=False, disable_gravity_=True)
+
     def create_envs_(self):
         # setup environmets
         print("Number of environments: %d" % self.env_num)
@@ -199,12 +205,6 @@ class DIGIT_SIM:
             env = self.gym.create_env(self.sim, self.env_lower, self.env_upper, env_per_row)
             self.envs.append(env)
 
-    def setup_assets_(self):
-        self.sensor_assets = self.load_assets_(self.sensors, self.sensor_dir, fix_base_link_=True, disable_gravity_=True)
-        self.indenter_assets = self.load_assets_(self.indenters, self.indenter_dir, fix_base_link_=False, disable_gravity_=True)
-
-    def setup_actors_(self):
-        for i in range(self.env_num):
             # create sensor actors
             sensor_pose = gymapi.Transform()
             sensor_pose.p = gymapi.Vec3(0.0, self.sensor_offset, 0.0)
@@ -299,16 +299,13 @@ class DIGIT_SIM:
             local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
             self.nodal_coords[env_index][local_particle_index] = pos.numpy()
 
-    def visualize_vertices_(self, env_index_):
-        if(env_index_ >= self.env_num or env_index_ < 0):
-            print("Invalid env_index in function visualize_vertices()")
-            return
-        else:
+    def visualize_vertices_(self):
+        for env_index_ in range(self.env_num):
             x_pos_env_0 = list(self.nodal_coords[env_index_][:][:,0])
             y_pos_env_0 = list(self.nodal_coords[env_index_][:][:,2])
             z_pos_env_0 = list(self.nodal_coords[env_index_][:][:,1])
             points = np.vstack((x_pos_env_0, y_pos_env_0, z_pos_env_0)).transpose()
-            self.visualizer.visualize(points)
+            self.visualizers[env_index_].visualize(points)
 
     def sim_loop_(self):
         # Sim loop
@@ -320,7 +317,7 @@ class DIGIT_SIM:
             # control indenters
             reached_ = self.indenters_control_()
             self.extract_vertices_()
-            self.visualize_vertices_(env_index_=0)
+            self.visualize_vertices_()
             # exit loop
             if(reached_==True):
                 print("indenters have reached targets")
@@ -342,9 +339,8 @@ class DIGIT_SIM:
     def main(self):
         self.initialize_simulation_()
         self.create_viewer_()
-        self.create_envs_()
         self.setup_assets_()
-        self.setup_actors_()
+        self.create_envs_()
         self.sim_loop_()
         self.coda_()
 
