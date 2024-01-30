@@ -299,7 +299,7 @@ class DIGIT_SIM:
             local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
             self.nodal_coords[env_index][local_particle_index] = pos.numpy()
 
-    def visualize_vertices(self, env_index_):
+    def visualize_vertices_(self, env_index_):
         if(env_index_ >= self.env_num or env_index_ < 0):
             print("Invalid env_index in function visualize_vertices()")
             return
@@ -320,7 +320,7 @@ class DIGIT_SIM:
             # control indenters
             reached_ = self.indenters_control_()
             self.extract_vertices_()
-            self.visualize_vertices(env_index_=0)
+            self.visualize_vertices_(env_index_=0)
             # exit loop
             if(reached_==True):
                 print("indenters have reached targets")
@@ -337,6 +337,7 @@ class DIGIT_SIM:
     def coda_(self):
         self.gym.destroy_viewer(self.viewer)
         self.gym.destroy_sim(self.sim)
+        self.visualizer.coda()
 
     def main(self):
         self.initialize_simulation_()
