@@ -81,7 +81,7 @@ class DIGIT_SIM:
         self.incremental_controller = INCREMENTAL_CONTROLLER(increment=5e-5)
 
         # Set target indenter pose, Isaac Gym's coordinate system is Y up.
-        self.indent_target = [0.0, 0.112, -0.005,  # Position of tip
+        self.indent_target = [0.0, self.sensor_offset + 0.012, -0.005,  # Position of tip
                               1.0, 0.0, 0.0,         # Orientation of x-axis       
                               0.0, 1.0, 0.0,         # Orientation of y-axis
                               0.0, 0.0, 1.0]         # Orientation of z-axis
