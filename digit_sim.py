@@ -13,10 +13,14 @@ class INCREMENTAL_CONTROLLER:
         self.eps_ = eps
 
     def get_input(self, state, ref_state):
+        # initialize input value
         input_ = state
 
+        # to indicate whether current state has reached its reference state
+        reached_ = False
+
         if(abs(ref_state - state) < self.eps_):
-            pass
+            reached_ = True
         elif(ref_state > state):
             input_ += self.increment_
         elif(ref_state < state):
@@ -24,7 +28,7 @@ class INCREMENTAL_CONTROLLER:
         else:
             print("Unknown error in function get_input()")
 
-        return input_
+        return input_, reached_
         
 
 class DIGIT_SIM:
@@ -78,7 +82,7 @@ class DIGIT_SIM:
         self.controller_pd_gains = [1.0e+9, 0.0] # PD controller parameters
 
         # Initialize Incremental Controller for Indenters
-        self.incremental_controller = INCREMENTAL_CONTROLLER(increment=5e-5)
+        self.incremental_controller = INCREMENTAL_CONTROLLER(increment=2e-5, eps=5e-4)
 
         # Set target indenter pose, Isaac Gym's coordinate system is Y up.
         self.indent_target = [0.0, self.sensor_offset + 0.012, -0.005,  # Position of tip
@@ -111,12 +115,14 @@ class DIGIT_SIM:
             quit()
 
         # Point camera at environments
-        cam_pos = gymapi.Vec3(-self.env_spacing, 
-                              (self.sensor_offset + self.indenter_offset) / 2.0 + self.env_spacing, 
-                              -self.env_spacing)
-        cam_target = gymapi.Vec3(self.env_spacing, 
-                                 (self.sensor_offset + self.indenter_offset) / 2.0 - self.env_spacing, 
-                                 self.env_spacing)
+        viewport_scale_xz = 0.25
+        viewport_scale_y = 0.1
+        cam_pos = gymapi.Vec3(-self.env_spacing * viewport_scale_xz, 
+                              (self.sensor_offset + self.indenter_offset) / 2.0 + self.env_spacing * viewport_scale_y, 
+                              -self.env_spacing * viewport_scale_xz)
+        cam_target = gymapi.Vec3(self.env_spacing * viewport_scale_xz, 
+                                 (self.sensor_offset + self.indenter_offset) / 2.0 - self.env_spacing * viewport_scale_y, 
+                                 self.env_spacing * viewport_scale_xz)
         self.gym.viewer_camera_look_at(self.viewer, None, cam_pos, cam_target)
     
     def load_assets_(self, assets_, dir_, fix_base_link_=True, disable_gravity_=True):
@@ -190,18 +196,37 @@ class DIGIT_SIM:
         target_y_axis = self.indent_target[6:9]
         target_z_axis = self.indent_target[9:12]
 
+        # to indicate whether all indenters has reached their targets by logical judgement (AND)
+        envs_flag_ = 1
+
+        # walk through all envs
         for i in range(self.env_num):
             # get state
             indenter_state = self.gym.get_actor_rigid_body_states(self.envs[i], self.indenter_actors[i], gymapi.STATE_ALL)
+
+            # to indicate whether all indenters has reached their targets by logical judgement (AND)
+            env_flag_ = 1
 
             # walk through all links in the indenter
             for j in range(len(indenter_state)):
                 # control position
                 position_state = indenter_state[j]['pose']['p']
+
+                # to indicate whether all indenters has reached their targets by logical judgement (AND)
+                link_flag_ = 1
                 # walk through xyz in a position
                 for k in range(len(position_state)):
-                    indenter_state[j]['pose']['p'][k] = self.incremental_controller.get_input(state=float(position_state[k]), 
-                                                                                              ref_state=target_position[k])
+                    # moniter states
+                    # print("link index: "+str(k)+", x: "+str(position_state[0])+", y: "+str(position_state[1])+", z: "+str(position_state[2]))
+                    
+                    # get input from a incremental controller
+                    indenter_state[j]['pose']['p'][k], position_flag_ = self.incremental_controller.get_input(state=float(position_state[k]), 
+                                                                                                              ref_state=target_position[k])
+                    # logical operation (AND)
+                    link_flag_ = link_flag_ * position_flag_
+
+                # logical operation (AND)
+                env_flag_ = env_flag_ * link_flag_
 
                 # control orientation
                 r = R.from_matrix(np.asarray([target_x_axis, target_y_axis, target_z_axis]).transpose())
@@ -212,8 +237,13 @@ class DIGIT_SIM:
                 indenter_state[j]['vel']['linear'] = (0.0, 0.0, 0.0)
                 indenter_state[j]['vel']['angular'] = (0.0, 0.0, 0.0)
 
+            # logical operation (AND)
+            envs_flag_ = envs_flag_ * env_flag_
+
             # apply changes
             self.gym.set_actor_rigid_body_states(self.envs[i], self.indenter_actors[i], indenter_state, gymapi.STATE_ALL)
+        
+        return envs_flag_
 
     def sim_loop_(self):
         # Sim loop
@@ -223,7 +253,10 @@ class DIGIT_SIM:
             self.gym.fetch_results(self.sim, True)
 
             # control indenters
-            self.indenters_control_()
+            reached_ = self.indenters_control_()
+            # exit loop
+            if(reached_==True):
+                break
 
             # update the viewer
             self.gym.step_graphics(self.sim)
