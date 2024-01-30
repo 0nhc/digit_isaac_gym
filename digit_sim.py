@@ -6,6 +6,32 @@ import os
 import math
 from scipy.spatial.transform import Rotation as R
 import numpy as np
+import open3d as o3d
+
+class VISUALIZER:
+    def __init__(self) -> None:
+        # create visualizer and window.
+        self.vis = o3d.visualization.Visualizer()
+        self.vis.create_window(height=480, width=640)
+
+        # initialize pointcloud instance.
+        self.points = np.random.rand(1, 3) # xyz
+        self.pcd = o3d.geometry.PointCloud()
+        self.pcd.points = o3d.utility.Vector3dVector(self.points)
+        self.vis.add_geometry(self.pcd)
+
+        # running state
+        self.running_state = True
+
+    def visualize(self, points_):
+        self.pcd.points = o3d.utility.Vector3dVector(points_)
+        self.vis.update_geometry(self.pcd)
+        self.running_state = self.vis.poll_events()
+        self.vis.update_renderer()
+
+    def coda(self):
+        self.vis.destroy_window()
+
 
 class INCREMENTAL_CONTROLLER:
     def __init__(self, increment=1.0e-4, eps=1.0e-4) -> None:
@@ -89,6 +115,9 @@ class DIGIT_SIM:
                               1.0, 0.0, 0.0,         # Orientation of x-axis       
                               0.0, 1.0, 0.0,         # Orientation of y-axis
                               0.0, 0.0, 1.0]         # Orientation of z-axis
+        
+        # visualize FEM vertices in real time
+        self.visualizer = VISUALIZER()
 
     def initialize_simulation_(self):
         # initialize Isaac Gym
