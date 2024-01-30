@@ -7,25 +7,36 @@ import math
 from scipy.spatial.transform import Rotation as R
 import numpy as np
 import open3d as o3d
+import time
 
 class VISUALIZER:
-    def __init__(self) -> None:
+    def __init__(self, scale = 1.0) -> None:
         # create visualizer and window.
         self.vis = o3d.visualization.Visualizer()
         self.vis.create_window(height=480, width=640)
 
         # initialize pointcloud instance.
-        self.points = np.random.rand(1, 3) # xyz
         self.pcd = o3d.geometry.PointCloud()
+        self.points = np.random.rand(10000, 3) # xyz
         self.pcd.points = o3d.utility.Vector3dVector(self.points)
         self.vis.add_geometry(self.pcd)
+
+        # timer
+        self.dt = 0.01
+        self.previous_t = time.time()
 
         # running state
         self.running_state = True
 
+        # scaling
+        self.scale_ = scale
+
     def visualize(self, points_):
-        self.pcd.points = o3d.utility.Vector3dVector(points_)
-        self.vis.update_geometry(self.pcd)
+        points_ = points_ * self.scale_
+        if time.time() - self.previous_t > self.dt:
+            self.pcd.points = o3d.utility.Vector3dVector(points_)
+            self.vis.update_geometry(self.pcd)
+            self.previous_t = time.time()
         self.running_state = self.vis.poll_events()
         self.vis.update_renderer()
 
@@ -111,13 +122,14 @@ class DIGIT_SIM:
         self.incremental_controller = INCREMENTAL_CONTROLLER(increment=2e-5, eps=5e-4)
 
         # Set target indenter pose, Isaac Gym's coordinate system is Y up.
-        self.indent_target = [0.0, self.sensor_offset + 0.012, -0.005,  # Position of tip
+        self.indent_target = [0.0, self.sensor_offset + 0.0115, -0.005,  # Position of tip
                               1.0, 0.0, 0.0,         # Orientation of x-axis       
                               0.0, 1.0, 0.0,         # Orientation of y-axis
                               0.0, 0.0, 1.0]         # Orientation of z-axis
         
         # visualize FEM vertices in real time
-        self.visualizer = VISUALIZER()
+        self.visualizer = VISUALIZER(scale=10.0)
+        self.nodal_coords = np.zeros([])
 
     def initialize_simulation_(self):
         # initialize Isaac Gym
@@ -273,6 +285,30 @@ class DIGIT_SIM:
             self.gym.set_actor_rigid_body_states(self.envs[i], self.indenter_actors[i], indenter_state, gymapi.STATE_ALL)
         
         return envs_flag_
+    
+    def extract_vertices_(self):
+        # Get particle positions
+        self.gym.refresh_particle_state_tensor(self.sim)
+        particle_states = gymtorch.wrap_tensor(self.gym.acquire_particle_state_tensor(self.sim))
+        num_particles = len(particle_states)
+        num_particles_per_env = int(num_particles / self.env_num)
+        self.nodal_coords = np.zeros((self.env_num, num_particles_per_env, 3))
+        for global_particle_index, particle_state in enumerate(particle_states):
+            pos = particle_state[:3]
+            env_index = global_particle_index // num_particles_per_env # which env
+            local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
+            self.nodal_coords[env_index][local_particle_index] = pos.numpy()
+
+    def visualize_vertices(self, env_index_):
+        if(env_index_ >= self.env_num or env_index_ < 0):
+            print("Invalid env_index in function visualize_vertices()")
+            return
+        else:
+            x_pos_env_0 = list(self.nodal_coords[env_index_][:][:,0])
+            y_pos_env_0 = list(self.nodal_coords[env_index_][:][:,2])
+            z_pos_env_0 = list(self.nodal_coords[env_index_][:][:,1])
+            points = np.vstack((x_pos_env_0, y_pos_env_0, z_pos_env_0)).transpose()
+            self.visualizer.visualize(points)
 
     def sim_loop_(self):
         # Sim loop
@@ -283,9 +319,12 @@ class DIGIT_SIM:
 
             # control indenters
             reached_ = self.indenters_control_()
+            self.extract_vertices_()
+            self.visualize_vertices(env_index_=0)
             # exit loop
             if(reached_==True):
-                break
+                print("indenters have reached targets")
+                # break
 
             # update the viewer
             self.gym.step_graphics(self.sim)
