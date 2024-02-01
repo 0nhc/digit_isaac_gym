@@ -69,7 +69,7 @@ class INCREMENTAL_CONTROLLER:
         
 
 class DIGIT_SIM:
-    def __init__(self) -> None:
+    def __init__(self, flag_visualize=True) -> None:
         # Arguments for Isaac Gym
         self.gym_args = gymutil.parse_arguments()
         self.gym_args.physics_engine = gymapi.SIM_FLEX # Soft-body simulation backend
@@ -128,10 +128,12 @@ class DIGIT_SIM:
                               0.0, 0.0, 1.0]         # Orientation of z-axis
         
         # visualize FEM vertices in real time
-        self.visualizers = []
-        for i in range(self.env_num):
-            self.visualizers.append(VISUALIZER(scale=10.0))
-        self.nodal_coords = np.zeros([])
+        self.flag_visualize = flag_visualize
+        if(self.flag_visualize==True):
+            self.visualizers = []
+            for i in range(self.env_num):
+                self.visualizers.append(VISUALIZER(scale=10.0))
+        self.nodal_coords = np.zeros([]) # vertices
 
     def initialize_simulation_(self):
         # initialize Isaac Gym
@@ -316,8 +318,12 @@ class DIGIT_SIM:
 
             # control indenters
             reached_ = self.indenters_control_()
-            self.extract_vertices_()
-            self.visualize_vertices_()
+
+            # visualize soft body
+            if(self.flag_visualize):
+                self.extract_vertices_()
+                self.visualize_vertices_()
+
             # exit loop
             if(reached_==True):
                 print("indenters have reached targets")
@@ -345,5 +351,5 @@ class DIGIT_SIM:
         self.coda_()
 
 if __name__ == "__main__":
-    digit_sim = DIGIT_SIM()
+    digit_sim = DIGIT_SIM(flag_visualize=False)
     digit_sim.main()
