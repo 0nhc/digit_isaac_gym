@@ -102,7 +102,7 @@ class DIGIT_SIM:
         self.sensor_actors = []
 
         # Specify Indenters to be Loaded
-        self.indenters = ["ball_indenter", "box_indenter"]
+        self.indenters = ["ball_indenter"]
         self.indenter_dir = os.path.join('urdf', 'indenters')
         self.indenter_assets = []
         self.indenter_offset = 0.12
