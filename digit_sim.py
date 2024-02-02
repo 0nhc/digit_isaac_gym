@@ -8,6 +8,7 @@ from scipy.spatial.transform import Rotation as R
 import numpy as np
 import open3d as o3d
 import time
+import pickle
 
 class VISUALIZER:
     def __init__(self, scale = 1.0) -> None:
@@ -129,11 +130,15 @@ class DIGIT_SIM:
         
         # visualize FEM vertices in real time
         self.flag_visualize = flag_visualize
+        self.nodal_coords = np.zeros([]) # FEM coordinates extracted from Isaac Gym
+        self.vertices = [] # vertices
+        # initialize varaibles
         if(self.flag_visualize==True):
             self.visualizers = []
             for i in range(self.env_num):
                 self.visualizers.append(VISUALIZER(scale=10.0))
-        self.nodal_coords = np.zeros([]) # vertices
+        for i in range(self.env_num):
+            self.vertices.append(None)
 
     def initialize_simulation_(self):
         # initialize Isaac Gym
@@ -300,14 +305,23 @@ class DIGIT_SIM:
             env_index = global_particle_index // num_particles_per_env # which env
             local_particle_index = global_particle_index % num_particles_per_env # the index of particles in the current env
             self.nodal_coords[env_index][local_particle_index] = pos.numpy()
-
-    def visualize_vertices_(self):
+        
+        # wrap vertices
         for env_index_ in range(self.env_num):
             x_pos_env_0 = list(self.nodal_coords[env_index_][:][:,0])
             y_pos_env_0 = list(self.nodal_coords[env_index_][:][:,2])
             z_pos_env_0 = list(self.nodal_coords[env_index_][:][:,1])
-            points = np.vstack((x_pos_env_0, y_pos_env_0, z_pos_env_0)).transpose()
-            self.visualizers[env_index_].visualize(points)
+            self.vertices[env_index_] = np.vstack((x_pos_env_0, y_pos_env_0, z_pos_env_0)).transpose()
+
+    def visualize_vertices_(self):
+        for env_index_ in range(self.env_num):
+            self.visualizers[env_index_].visualize(self.vertices[env_index_])
+
+    def save_vertices_(self):
+        for i in range(self.env_num):
+            save_data = open('vertices_env_'+str(i)+'.pkl', 'wb')
+            pickle.dump(self.vertices[i], save_data)
+            save_data.close()
 
     def sim_loop_(self):
         # Sim loop
@@ -319,15 +333,17 @@ class DIGIT_SIM:
             # control indenters
             reached_ = self.indenters_control_()
 
+            # extract vertices
+            self.extract_vertices_()
+
             # visualize soft body
             if(self.flag_visualize):
-                self.extract_vertices_()
                 self.visualize_vertices_()
 
             # exit loop
             if(reached_==True):
                 print("indenters have reached targets")
-                # break
+                break
 
             # update the viewer
             self.gym.step_graphics(self.sim)
@@ -338,9 +354,17 @@ class DIGIT_SIM:
             self.gym.sync_frame_time(self.sim)
 
     def coda_(self):
+        # destroy isaac gym
         self.gym.destroy_viewer(self.viewer)
         self.gym.destroy_sim(self.sim)
-        self.visualizer.coda()
+
+        # destroy open3d visualizers
+        if(self.flag_visualize==True):
+            for i in range(self.env_num):
+                self.visualizers[i].coda()
+        
+        # save vertices data
+        self.save_vertices_()
 
     def main(self):
         self.initialize_simulation_()
